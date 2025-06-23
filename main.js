@@ -47,6 +47,7 @@ ipcMain.handle('capture-photo', async (event, { index }) => {
 
 
 ipcMain.handle('save-final-photo', async (event, dataUrl) => {
+  const fs = require('fs');
   const base64Data = dataUrl.replace(/^data:image\/jpeg;base64,/, "");
   const filename = `hasil_${Date.now()}.jpg`;
   const finalDir = path.join(__dirname, 'final');
@@ -68,6 +69,7 @@ ipcMain.handle('save-photo-blob', async (event, dataUrl, filename) => {
 });
 
 ipcMain.handle('print-photo', async (event, filePath) => {
+  const fs = require('fs');
   const { BrowserWindow } = require('electron');
 
   return new Promise(async (resolve, reject) => {

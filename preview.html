@@ -11,12 +11,12 @@
   </style>
 </head>
 <body class="bg-gray-100 p-6">
-  <h1 class="text-2xl font-bold text-center mb-6">Sesuaikan Foto Anda</h1>
+  <h1 class="text-2xl font-bold text-center mb-6">Hasil Foto Anda</h1>
 
   <div class="flex flex-col lg:flex-row justify-center gap-6">
     <div class="flex flex-col items-center">
-      <canvas id="canvas" width="500" height="700" class="border rounded shadow"></canvas>
-      <p class="text-gray-700 text-sm mt-2 text-center">Foto otomatis dipasang ke dalam frame.</p>
+      <canvas id="canvas" width="500" height="650" class="border rounded shadow"></canvas>
+      
     </div>
 
     <div class="flex flex-col items-center justify-start mt-6 lg:mt-0">
@@ -26,12 +26,14 @@
     </div>
 
   </div>
-  <div id="overlay" class="fixed inset-0 bg-black text-white hidden items-center justify-center flex-col z-50">
-    <h2 class="text-4xl font-bold mb-4">Terima kasih!</h2>
-    <p class="text-xl mb-2">Scan QR Code untuk mengunduh hasil foto</p>
-    <canvas id="finalQrCode" class="bg-white p-2 rounded mb-4"></canvas>
-    <p id="countdownText" class="text-lg">Kembali ke awal dalam <span id="counter">30</span> detik...</p>
+  <div id="overlay" class="fixed inset-0 bg-gray-100 text-gray-800 hidden flex items-center justify-center z-50">
+  <div class="flex flex-col items-center">
+    <h1 class="text-3xl font-semibold mb-4">Hasil Foto Anda</h1>
+    <p class="mb-2 text-gray-600">Scan QR Code ini untuk download foto</p>
+    <canvas id="finalQrCode" class="bg-white p-2 rounded shadow mb-4"></canvas>
+    <p id="countdownText" class="text-sm text-gray-500">Mengalihkan ke halaman utama dalam <span id="counter">30</span> detik...</p>
   </div>
+</div>
 
   <script>
     const canvas = document.getElementById("canvas");
@@ -46,9 +48,9 @@
 
     function getSlots() {
       return [
-        { x: 50, y: 10, width: 400, height: 230 },
-        { x: 50, y: 240, width: 400, height: 230 },
-        { x: 50, y: 470, width: 400, height: 230 }
+        { x: 50, y: 10, width: 400, height: 220 },
+        { x: 50, y: 220, width: 400, height: 220 },
+        { x: 50, y: 440, width: 400, height: 220 }
       ];
     }
 

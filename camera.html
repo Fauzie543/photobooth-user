@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <title>Ambil Foto</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+  #loadingScreen {
+    display: none;
+    backdrop-filter: blur(5px);
+  }
+</style>
 </head>
 <body class="bg-gray-100">
 
@@ -86,7 +92,12 @@
             localStorage.setItem('capturedPhotos', JSON.stringify(capturedPhotos));
             const orderId = urlParams.get('order_id');
             const frameId = urlParams.get('frame_id');
-            window.location.href = `preview.html?order_id=${orderId}&frame_id=${frameId}`;
+            const loadingScreen = document.getElementById('loadingScreen');
+              loadingScreen.classList.remove('hidden');
+
+              setTimeout(() => {
+                window.location.href = `preview.html?order_id=${orderId}&frame_id=${frameId}`;
+              }, 2000);
             return;
         }
 
@@ -122,6 +133,15 @@
       takeNext();
     });
   </script>
+<div id="loadingScreen" class="fixed inset-0 bg-white bg-opacity-90 flex-col justify-center items-center hidden z-50">
+  <div class="flex flex-col items-center">
+    <svg class="animate-spin h-10 w-10 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+    <p class="text-gray-700 font-medium">Mengunggah dan memproses foto...</p>
+  </div>
+</div>
 
 </body>
 </html>
