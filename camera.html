@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ambil Foto</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+  <header class="bg-white text-center py-4 text-2xl font-bold shadow">
+    Ambil Foto
+  </header>
+
+  <div class="flex justify-center mt-10">
+    <div class="bg-white p-6 rounded shadow flex gap-6 w-[1000px]">
+      
+      <!-- Live Preview -->
+      <div class="flex flex-col items-center w-1/2 relative">
+        <video id="camera" autoplay playsinline class="rounded border w-full h-auto"></video>
+        <div id="countdown" class="absolute top-2 left-1/2 transform -translate-x-1/2 text-5xl text-red-600 font-bold hidden">3</div>
+        <p id="status" class="mt-4 text-lg text-gray-700">Tekan tombol untuk mulai</p>
+        <button id="startBtn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded">
+          Mulai Ambil Foto
+        </button>
+      </div>
+
+      <!-- Result Preview -->
+      <div class="w-1/2">
+        <h2 class="text-lg font-semibold mb-2">Hasil Foto</h2>
+        <div id="preview" class="grid grid-cols-2 gap-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    const urlParams = new URLSearchParams(window.location.search);
+    const frameId = urlParams.get('frame_id'); 
+    const photoCount = parseInt(urlParams.get('count')) || 4;
+    const capturedPhotos = [];
+
+    const camera = document.getElementById('camera');
+    const countdown = document.getElementById('countdown');
+    const status = document.getElementById('status');
+    const preview = document.getElementById('preview');
+    const startBtn = document.getElementById('startBtn');
+
+    let stream;
+    let i = 0;
+
+    // Akses webcam laptop
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(s => {
+        stream = s;
+        camera.srcObject = stream;
+      })
+      .catch(error => {
+        console.error('Tidak bisa mengakses kamera:', error);
+        status.textContent = 'Gagal mengakses kamera.';
+        startBtn.disabled = true;
+      });
+
+    // Fungsi untuk capture gambar dari <video>
+    const captureImage = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = camera.videoWidth;
+        canvas.height = camera.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(camera, 0, 0, canvas.width, canvas.height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        capturedPhotos.push(dataUrl); 
+
+        await ipcRenderer.invoke('save-photo-blob', dataUrl, `photo_${Date.now()}_${i}.jpg`);
+
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.className = "w-full rounded border";
+        preview.appendChild(img);
+    };
+
+
+    const takeNext = async () => {
+        if (i >= photoCount) {
+            status.textContent = "Semua foto telah diambil!";
+            localStorage.setItem('capturedPhotos', JSON.stringify(capturedPhotos));
+            const orderId = urlParams.get('order_id');
+            const frameId = urlParams.get('frame_id');
+            window.location.href = `preview.html?order_id=${orderId}&frame_id=${frameId}`;
+            return;
+        }
+
+        let count = 3;
+        countdown.textContent = count;
+        countdown.classList.remove('hidden');
+        status.textContent = `Mengambil foto ${i + 1} dalam...`;
+
+        const countdownStep = () => {
+            count--;
+            if (count === 0) {
+            countdown.classList.add('hidden');
+            status.textContent = `Mengambil foto ${i + 1}...`;
+
+            captureImage().then(() => {
+                i++;
+                setTimeout(() => {
+                takeNext();
+                }, 1000);
+            });
+            } else {
+            countdown.textContent = count;
+            setTimeout(countdownStep, 1000);
+            }
+        };
+
+        setTimeout(countdownStep, 1000);
+    };
+
+
+    startBtn.addEventListener('click', () => {
+      startBtn.classList.add('hidden');
+      takeNext();
+    });
+  </script>
+
+</body>
+</html>

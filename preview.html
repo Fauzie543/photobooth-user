@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Preview Editor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    canvas {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-6">
+  <h1 class="text-2xl font-bold text-center mb-6">Sesuaikan Foto Anda</h1>
+
+  <div class="flex flex-col lg:flex-row justify-center gap-6">
+    <div class="flex flex-col items-center">
+      <canvas id="canvas" width="500" height="700" class="border rounded shadow"></canvas>
+      <p class="text-gray-700 text-sm mt-2 text-center">Foto otomatis dipasang ke dalam frame.</p>
+    </div>
+
+    <div class="flex flex-col items-center justify-start mt-6 lg:mt-0">
+      <button id="printBtn" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700 mb-4">Cetak Foto</button>
+      <p class="text-gray-600 text-sm mb-2 text-center">Scan QR Code untuk unduh hasil</p>
+      <canvas id="qrcode" class="bg-white p-2 rounded shadow"></canvas>
+    </div>
+
+  </div>
+  <div id="overlay" class="fixed inset-0 bg-black text-white hidden items-center justify-center flex-col z-50">
+    <h2 class="text-4xl font-bold mb-4">Terima kasih!</h2>
+    <p class="text-xl mb-2">Scan QR Code untuk mengunduh hasil foto</p>
+    <canvas id="finalQrCode" class="bg-white p-2 rounded mb-4"></canvas>
+    <p id="countdownText" class="text-lg">Kembali ke awal dalam <span id="counter">30</span> detik...</p>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const frameId = urlParams.get("frame_id");
+    const photoDataUrls = JSON.parse(localStorage.getItem("capturedPhotos") || "[]");
+
+    let frameImage = null;
+    let photos = [];
+
+    function getSlots() {
+      return [
+        { x: 50, y: 10, width: 400, height: 230 },
+        { x: 50, y: 240, width: 400, height: 230 },
+        { x: 50, y: 470, width: 400, height: 230 }
+      ];
+    }
+
+    async function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject("Gagal load image: " + src);
+        img.src = src;
+      });
+    }
+
+    async function init() {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/api/frames/${frameId}`);
+        const data = await response.json();
+        frameImage = await loadImage(data.image_url);
+
+        for (let url of photoDataUrls) {
+          const img = await loadImage(url);
+          photos.push(img);
+        }
+
+        drawAll();
+      } catch (e) {
+        alert("Gagal memuat gambar: " + e);
+      }
+    }
+
+    function drawAll() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const slots = getSlots();
+      for (let i = 0; i < photos.length && i < slots.length; i++) {
+        const img = photos[i];
+        const slot = slots[i];
+
+        const scale = Math.max(slot.width / img.width, slot.height / img.height);
+        const sw = slot.width / scale;
+        const sh = slot.height / scale;
+        const sx = (img.width - sw) / 2;
+        const sy = (img.height - sh) / 2;
+
+        ctx.drawImage(
+        img,
+        sx, sy, sw, sh,      // sumber (potongan dari foto)
+        slot.x, slot.y,      // posisi di canvas
+        slot.width, slot.height // ukuran slot (output)
+        );
+      }
+
+      if (frameImage) {
+        ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    const { ipcRenderer } = require('electron');
+    const QRCode = require('qrcode');
+    const path = require('path');
+
+    document.getElementById("printBtn").addEventListener("click", async () => {
+    const finalDataUrl = canvas.toDataURL("image/jpeg");
+
+    // Simpan ke folder lokal (final/)
+    const filePath = await ipcRenderer.invoke('save-final-photo', finalDataUrl);
+
+    // Kirim ke Laravel (via fetch)
+    const response = await fetch("http://127.0.0.1:8000/api/upload-final-photo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        photo: finalDataUrl,
+        filename: filePath.split('\\').pop()
+      }),
+    });
+
+    if (!response.ok) {
+      alert("Gagal mengirim ke backend.");
+      return;
+    }
+
+    // Kirim perintah cetak ke Electron (bukan browser)
+    //  try {
+    //   await ipcRenderer.invoke('print-photo', filePath);
+    // } catch (err) {
+    //   alert("Gagal mencetak: " + err.message);
+    //   return;
+    // }
+
+     const overlay = document.getElementById("overlay");
+      const countdown = document.getElementById("counter");
+      const finalQrCode = document.getElementById("finalQrCode");
+      const downloadUrl = `https://yourserver.com/downloads/${filePath.split('\\').pop()}`;
+
+      QRCode.toCanvas(finalQrCode, downloadUrl, err => {
+        if (err) console.error("Gagal generate QR:", err);
+      });
+
+      overlay.classList.remove("hidden");
+      let timeLeft = 30;
+      countdown.textContent = timeLeft;
+
+      const interval = setInterval(() => {
+        timeLeft--;
+        countdown.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          window.location.href = "index.html";
+        }
+      }, 1000);
+  });
+
+
+
+    init();
+  </script>
+</body>
+</html>

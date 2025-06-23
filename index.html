@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CREOFIL STUDIO</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+
+  <!-- Header -->
+  <header class="bg-white py-5 text-center shadow text-xl font-bold">
+    CREOFIL STUDIO
+  </header>
+
+  <!-- Title -->
+  <h2 class="text-2xl font-semibold text-center mt-8 mb-6">Pilih Frame dan Isi Data</h2>
+
+  <!-- Frame List -->
+  <div id="frames" class="flex justify-center flex-wrap gap-8 px-6"></div>
+
+  <!-- Selected Frame Display -->
+  <div id="selected-frame" class="text-center mt-10"></div>
+
+  <!-- Modal -->
+  <div id="order-modal" class="hidden fixed inset-0 bg-black bg-opacity-40 z-50 flex justify-center items-center">
+    <div class="bg-white p-8 rounded-xl w-96 relative shadow-lg">
+      <h3 class="text-lg font-semibold mb-4">Isi Data Pemesanan</h3>
+
+      <label class="block text-sm font-medium mb-1">Nama Lengkap</label>
+      <input id="nama" type="text" class="w-full border border-gray-300 rounded px-3 py-2 mb-4" />
+
+      <label class="block text-sm font-medium mb-1">Email</label>
+      <input id="email" type="email" class="w-full border border-gray-300 rounded px-3 py-2 mb-4" />
+
+      <label class="block text-sm font-medium mb-1">No HP</label>
+      <input id="nohp" type="text" class="w-full border border-gray-300 rounded px-3 py-2 mb-6" />
+
+      <button id="submit-payment" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Lanjut ke Pembayaran</button>
+
+      <button id="close-modal" class="absolute top-3 right-3 text-gray-500 text-xl font-bold">&times;</button>
+    </div>
+  </div>
+
+  <!-- Midtrans & JS -->
+  <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="SB-Mid-client-sF-Rdfx4z9pnSVdW"></script>
+  <script src="renderer.js"></script>
+
+</body>
+</html>
