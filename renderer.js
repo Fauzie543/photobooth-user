@@ -1,8 +1,43 @@
 const { ipcRenderer } = require('electron');
 const axios = require('axios');
+const SimpleKeyboard = window.SimpleKeyboard || window.default || window;
 
 let selectedFrame = null;
 
+let keyboard = null;
+let focusedInput = null;
+
+function showKeyboard(input) {
+    focusedInput = input;
+
+    if (!keyboard && window.Keyboard) {
+        keyboard = new SimpleKeyboard.default({
+            onChange: input => {
+                if (focusedInput) focusedInput.value = input;
+            },
+            onKeyPress: button => {
+                if (button === "{enter}" && focusedInput) {
+                    focusedInput.blur();
+                    hideKeyboard();
+                }
+            }
+        });
+    }
+
+    if (keyboard) {
+        keyboard.setInput(input.value);
+        document.getElementById("keyboard").style.display = "block";
+    } else {
+        console.warn("Keyboard class is not defined.");
+    }
+}
+
+function hideKeyboard() {
+    document.getElementById("keyboard").style.display = "none";
+    focusedInput = null;
+}
+
+// Event listeners tetap di dalam window.onload
 window.onload = async () => {
     const frameList = document.getElementById('frames');
     try {
@@ -21,7 +56,14 @@ window.onload = async () => {
     } catch (error) {
         console.error('Gagal memuat frame:', error);
     }
+
+    // Attach ke semua input
+    ["nama", "email", "nohp"].forEach(id => {
+        const input = document.getElementById(id);
+        input.addEventListener("focus", () => showKeyboard(input));
+    });
 };
+
 
 function selectFrame(frame) {
     selectedFrame = frame;

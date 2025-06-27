@@ -16,26 +16,35 @@
   <div class="flex flex-col lg:flex-row justify-center gap-6">
     <div class="flex flex-col items-center">
       <canvas id="canvas" width="500" height="650" class="border rounded shadow"></canvas>
-      
     </div>
 
     <div class="flex flex-col items-center justify-start mt-6 lg:mt-0">
-      <button id="printBtn" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700 mb-4">Cetak Foto</button>
-      <p class="text-gray-600 text-sm mb-2 text-center">Scan QR Code untuk unduh hasil</p>
+      <button id="printBtn" class="bg-green-600 text-white font-bold py-2 px-6 rounded hover:bg-green-700 mb-4">
+        Cetak Foto
+      </button>
+      <p class="text-gray-600 text-sm mb-2 text-center">
+        Scan QR Code untuk unduh hasil
+      </p>
       <canvas id="qrcode" class="bg-white p-2 rounded shadow"></canvas>
     </div>
+  </div>
 
-  </div>
   <div id="overlay" class="fixed inset-0 bg-gray-100 text-gray-800 hidden flex items-center justify-center z-50">
-  <div class="flex flex-col items-center">
-    <h1 class="text-3xl font-semibold mb-4">Hasil Foto Anda</h1>
-    <p class="mb-2 text-gray-600">Scan QR Code ini untuk download foto</p>
-    <canvas id="finalQrCode" class="bg-white p-2 rounded shadow mb-4"></canvas>
-    <p id="countdownText" class="text-sm text-gray-500">Mengalihkan ke halaman utama dalam <span id="counter">30</span> detik...</p>
+    <div class="flex flex-col items-center">
+      <h1 class="text-3xl font-semibold mb-4">Hasil Foto Anda</h1>
+      <p class="mb-2 text-gray-600">Scan QR Code ini untuk download foto</p>
+      <canvas id="finalQrCode" class="bg-white p-2 rounded shadow mb-4"></canvas>
+      <p id="countdownText" class="text-sm text-gray-500">
+        Mengalihkan ke halaman utama dalam <span id="counter">30</span> detik...
+      </p>
+    </div>
   </div>
-</div>
 
   <script>
+    const { ipcRenderer } = require('electron');
+    const QRCode = require('qrcode');
+    const path = require('path');
+
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
@@ -45,6 +54,7 @@
 
     let frameImage = null;
     let photos = [];
+    let finalDownloadUrl = null;
 
     function getSlots() {
       return [
@@ -65,16 +75,52 @@
 
     async function init() {
       try {
+        // Load frame
         const response = await fetch(`http://127.0.0.1:8000/api/frames/${frameId}`);
         const data = await response.json();
         frameImage = await loadImage(data.image_url);
 
+        // Load captured photos
         for (let url of photoDataUrls) {
           const img = await loadImage(url);
           photos.push(img);
         }
 
         drawAll();
+
+        // Simpan ke lokal (Electron)
+        const finalDataUrl = canvas.toDataURL("image/jpeg");
+        const filePath = await ipcRenderer.invoke('save-final-photo', finalDataUrl);
+
+        // Upload ke Laravel
+        const upload = await fetch("http://127.0.0.1:8000/api/upload-final-photo", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            photo: finalDataUrl,
+            filename: filePath.split('\\').pop()
+          }),
+        });
+
+        if (!upload.ok) {
+          alert("Gagal mengupload foto ke backend.");
+          return;
+        }
+
+        const json = await upload.json();
+        console.log("Upload sukses:", json);
+
+        const laptopIp = "192.168.138.131"; // ganti ip sesuai ipconfig laptopmu
+        const filename = json.filename;
+        finalDownloadUrl = `http://${laptopIp}:8000/download/${filename}`;
+
+        const qrCanvas = document.getElementById("qrcode");
+        QRCode.toCanvas(qrCanvas, finalDownloadUrl, function (error) {
+          if (error) console.error(error);
+        });
+
       } catch (e) {
         alert("Gagal memuat gambar: " + e);
       }
@@ -95,10 +141,10 @@
         const sy = (img.height - sh) / 2;
 
         ctx.drawImage(
-        img,
-        sx, sy, sw, sh,      // sumber (potongan dari foto)
-        slot.x, slot.y,      // posisi di canvas
-        slot.width, slot.height // ukuran slot (output)
+          img,
+          sx, sy, sw, sh,
+          slot.x, slot.y,
+          slot.width, slot.height
         );
       }
 
@@ -107,51 +153,19 @@
       }
     }
 
-    const { ipcRenderer } = require('electron');
-    const QRCode = require('qrcode');
-    const path = require('path');
-
     document.getElementById("printBtn").addEventListener("click", async () => {
-    const finalDataUrl = canvas.toDataURL("image/jpeg");
-
-    // Simpan ke folder lokal (final/)
-    const filePath = await ipcRenderer.invoke('save-final-photo', finalDataUrl);
-
-    // Kirim ke Laravel (via fetch)
-    const response = await fetch("http://127.0.0.1:8000/api/upload-final-photo", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        photo: finalDataUrl,
-        filename: filePath.split('\\').pop()
-      }),
-    });
-
-    if (!response.ok) {
-      alert("Gagal mengirim ke backend.");
-      return;
-    }
-
-    // Kirim perintah cetak ke Electron (bukan browser)
-    //  try {
-    //   await ipcRenderer.invoke('print-photo', filePath);
-    // } catch (err) {
-    //   alert("Gagal mencetak: " + err.message);
-    //   return;
-    // }
-
-     const overlay = document.getElementById("overlay");
+      // Tampilkan overlay
+      const overlay = document.getElementById("overlay");
       const countdown = document.getElementById("counter");
       const finalQrCode = document.getElementById("finalQrCode");
-      const downloadUrl = `https://yourserver.com/downloads/${filePath.split('\\').pop()}`;
 
-      QRCode.toCanvas(finalQrCode, downloadUrl, err => {
+      // QR Code di overlay
+      QRCode.toCanvas(finalQrCode, finalDownloadUrl, err => {
         if (err) console.error("Gagal generate QR:", err);
       });
 
       overlay.classList.remove("hidden");
+
       let timeLeft = 30;
       countdown.textContent = timeLeft;
 
@@ -163,9 +177,7 @@
           window.location.href = "index.html";
         }
       }, 1000);
-  });
-
-
+    });
 
     init();
   </script>
